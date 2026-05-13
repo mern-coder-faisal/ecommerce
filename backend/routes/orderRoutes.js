@@ -94,4 +94,15 @@ router.get('/', protect, adminOnly, async (req, res) => {
   }
 });
 
+// DELETE /api/orders/:id (admin)
+router.delete('/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const order = await Order.findByIdAndDelete(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    res.json({ message: 'Order removed successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
 module.exports = router;

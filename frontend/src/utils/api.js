@@ -12,28 +12,31 @@ export async function apiFetch(path, options = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  // If body is FormData, don't set Content-Type, fetch will set it with boundary
+  if (options.body instanceof FormData) {
+    delete headers['Content-Type'];
+  }
+
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
 
   if (res.status === 204) return null;
 
   const contentType = res.headers.get('content-type');
-
   let data;
 
   try {
-    // ✅ safe single-read logic (no stream error possible)
     if (contentType && contentType.includes('application/json')) {
       data = await res.json();
     } else {
       data = await res.text();
     }
   } catch (err) {
-    throw new Error('Response parsing failed');
+    data = null;
   }
 
   if (!res.ok) {
     throw new Error(
-      data?.message || data?.error || data || 'Request failed'
+      data?.message || data?.error || (typeof data === 'string' ? data : 'Request failed')
     );
   }
 
@@ -78,6 +81,11 @@ export const api = {
     apiFetch(`/admin/orders/${orderId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status })
+    }),
+  
+  deleteOrder: (orderId) =>
+    apiFetch(`/admin/orders/${orderId}`, {
+      method: 'DELETE'
     }),
 
   getCategories: () => apiFetch('/categories'),
@@ -140,8 +148,17 @@ export const api = {
   updateSettings: (body) =>
     apiFetch('/settings', {
       method: 'POST',
-      body: JSON.stringify(body)
+      body: body instanceof FormData ? body : JSON.stringify(body)
     }),
+
+  getPopups: () => apiFetch('/popups'),
+  getAllPopups: () => apiFetch('/popups/all'),
+  createPopup: (body) =>
+    apiFetch('/popups', {
+      method: 'POST',
+      body: body instanceof FormData ? body : JSON.stringify(body)
+    }),
+  deletePopup: (id) => apiFetch(`/popups/${id}`, { method: 'DELETE' }),
 
   recordVisit: (body) =>
     apiFetch('/visits', {

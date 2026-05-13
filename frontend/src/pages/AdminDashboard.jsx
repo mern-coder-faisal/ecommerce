@@ -111,6 +111,16 @@ export default function AdminDashboard() {
   const [editingItem, setEditingItem] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [popups, setPopups] = useState([]);
+  const [showPopupModal, setShowPopupModal] = useState(false);
+  const [files, setFiles] = useState({
+    productImage: null,
+    productGallery: [],
+    categoryImage: null,
+    bannerImage: null,
+    logoImage: null,
+    popupImage: null
+  });
 
   const fetchData = async () => {
     setLoading(true);
@@ -144,6 +154,9 @@ export default function AdminDashboard() {
       if (settingsRes.status === 'fulfilled') setSettings(settingsRes.value || {});
       else setSettings({});
 
+      const popupsRes = await api.getAllPopups();
+      setPopups(popupsRes || []);
+
       const allFailed = results.every(r => r.status === 'rejected');
       setUsingMock(allFailed);
     } catch (err) {
@@ -166,6 +179,17 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteOrder = async (orderId) => {
+    if (!confirm('Are you sure you want to delete this order?')) return;
+    try {
+      await api.deleteOrder(orderId);
+      setOrders((current) => current.filter((order) => order._id !== orderId));
+    } catch (err) {
+      console.error('Failed to delete order', err);
+      alert('Error deleting order: ' + (err.message || 'Unknown error'));
+    }
+  };
+
   const handleAddProduct = async () => {
     if (!newProduct.category) {
       alert('Please select a category or create one if the list is empty.');
@@ -176,13 +200,23 @@ export default function AdminDashboard() {
       return;
     }
     try {
-      const productData = {
-        ...newProduct,
-        price: parseFloat(newProduct.price) || 0,
-        stock: parseInt(newProduct.stock) || 0,
-      };
-      await api.createProduct(productData);
+      const formData = new FormData();
+      formData.append('name', newProduct.name);
+      formData.append('price', newProduct.price);
+      formData.append('category', newProduct.category);
+      formData.append('stock', newProduct.stock);
+      formData.append('description', newProduct.description);
+      
+      if (files.productImage) {
+        formData.append('image', files.productImage);
+      }
+      if (files.productGallery.length > 0) {
+        files.productGallery.forEach(file => formData.append('gallery', file));
+      }
+
+      await api.createProduct(formData);
       setNewProduct({ name: '', price: '', category: '', stock: '', image: '', description: '' });
+      setFiles({...files, productImage: null, productGallery: []});
       setShowProductModal(false);
       fetchData();
     } catch (err) {
@@ -203,8 +237,14 @@ export default function AdminDashboard() {
 
   const handleAddCategory = async () => {
     try {
-      await api.createCategory({ name: newCategory });
+      const formData = new FormData();
+      formData.append('name', newCategory);
+      if (files.categoryImage) {
+        formData.append('image', files.categoryImage);
+      }
+      await api.createCategory(formData);
       setNewCategory('');
+      setFiles({...files, categoryImage: null});
       setShowCategoryModal(false);
       fetchData();
     } catch (err) {
@@ -227,8 +267,16 @@ export default function AdminDashboard() {
 
   const handleAddBanner = async () => {
     try {
-      await api.createBanner(newBanner);
+      const formData = new FormData();
+      formData.append('title', newBanner.title);
+      formData.append('description', newBanner.description);
+      formData.append('link', newBanner.link);
+      if (files.bannerImage) {
+        formData.append('image', files.bannerImage);
+      }
+      await api.createBanner(formData);
       setNewBanner({ title: '', description: '', image: '', link: '' });
+      setFiles({...files, bannerImage: null});
       setShowBannerModal(false);
       fetchData();
     } catch (err) {
@@ -248,10 +296,46 @@ export default function AdminDashboard() {
 
   const handleSaveSettings = async () => {
     try {
-      await api.updateSettings(settings);
+      const formData = new FormData();
+      Object.keys(settings).forEach(key => {
+        formData.append(key, settings[key]);
+      });
+      if (files.logoImage) {
+        formData.append('logo', files.logoImage);
+      }
+      await api.updateSettings(formData);
+      setFiles({...files, logoImage: null});
+      alert('Settings saved successfully!');
       fetchData();
     } catch (err) {
       console.error('Failed to save settings', err);
+    }
+  };
+
+  const handleAddPopup = async () => {
+    if (!files.popupImage) {
+      alert('Please select an image for the popup');
+      return;
+    }
+    try {
+      const formData = new FormData();
+      formData.append('image', files.popupImage);
+      await api.createPopup(formData);
+      setFiles({...files, popupImage: null});
+      setShowPopupModal(false);
+      fetchData();
+    } catch (err) {
+      console.error('Failed to add popup', err);
+    }
+  };
+
+  const handleDeletePopup = async (id) => {
+    if (!confirm('Are you sure you want to delete this popup?')) return;
+    try {
+      await api.deletePopup(id);
+      fetchData();
+    } catch (err) {
+      console.error('Failed to delete popup', err);
     }
   };
 
@@ -270,6 +354,7 @@ export default function AdminDashboard() {
     { id: 'categories', label: 'Categories' },
     { id: 'banners', label: 'Banners' },
     { id: 'settings', label: 'Settings' },
+    { id: 'popups', label: 'Popups' },
     { id: 'analytics', label: 'Analytics' },
   ];
 
@@ -431,10 +516,10 @@ export default function AdminDashboard() {
                       <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16 }}>Recent Orders</h3>
                       <p style={{ color: 'var(--text2)', fontSize: 13 }}>Latest 5 orders</p>
                     </div>
-                    <button onClick={() => setActiveTab('orders')} style={{ color: 'var(--accent)', fontSize: 13, fontFamily: 'var(--font-display)', fontWeight: 600 }}>View all →</button>
+                      <button onClick={() => setActiveTab('orders')} style={{ color: 'var(--accent)', fontSize: 13, fontFamily: 'var(--font-display)', fontWeight: 600 }}>View all →</button>
+                    </div>
+                    <OrderTable orders={orders.slice(0, 5)} onStatusChange={handleStatusChange} onOrderClick={(order) => { setSelectedOrder(order); setShowOrderModal(true); }} onDeleteOrder={handleDeleteOrder} />
                   </div>
-                  <OrderTable orders={orders.slice(0, 5)} onStatusChange={handleStatusChange} onOrderClick={(order) => { setSelectedOrder(order); setShowOrderModal(true); }} />
-                </div>
               </>
             )}
 
@@ -445,7 +530,7 @@ export default function AdminDashboard() {
                   <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16 }}>All Orders</h3>
                   <p style={{ color: 'var(--text2)', fontSize: 13 }}>{orders.length} total orders</p>
                 </div>
-                <OrderTable orders={orders} onStatusChange={handleStatusChange} onOrderClick={(order) => { setSelectedOrder(order); setShowOrderModal(true); }} />
+                <OrderTable orders={orders} onStatusChange={handleStatusChange} onOrderClick={(order) => { setSelectedOrder(order); setShowOrderModal(true); }} onDeleteOrder={handleDeleteOrder} />
               </div>
             )}
 
@@ -669,37 +754,70 @@ export default function AdminDashboard() {
                 </div>
                 <div style={{ display: 'grid', gap: 16 }}>
                   <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 20 }}>
-                    <h4 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Store Information</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <h4 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Store Identity</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'end' }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Store Name</label>
-                        <input type="text" defaultValue={settings.storeName || ''} style={{
-                          width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--border)',
-                          background: 'var(--bg)', color: 'var(--text)', fontSize: 14
-                        }} />
+                        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Store Logo</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          {settings.logo && <img src={settings.logo} alt="Logo" style={{ width: 40, height: 40, borderRadius: 4, objectFit: 'contain', background: 'var(--bg2)' }} />}
+                          <input type="file" onChange={(e) => setFiles({...files, logoImage: e.target.files[0]})} style={{ fontSize: 12 }} />
+                        </div>
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Contact Email</label>
-                        <input type="email" defaultValue={settings.contactEmail || ''} style={{
+                        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Store Name</label>
+                        <input type="text" value={settings.storeName || ''} onChange={(e) => setSettings({...settings, storeName: e.target.value})} style={{
                           width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--border)',
                           background: 'var(--bg)', color: 'var(--text)', fontSize: 14
                         }} />
                       </div>
                     </div>
                   </div>
+                  
+                  <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 20 }}>
+                    <h4 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Theme Appearance</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Light Mode Colors</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Primary Color</label>
+                            <input type="color" value={settings.lightPrimary || '#6c63ff'} onChange={(e) => setSettings({...settings, lightPrimary: e.target.value})} style={{ width: '100%', height: 36, padding: 2, borderRadius: 4, border: '1px solid var(--border)' }} />
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Background</label>
+                            <input type="color" value={settings.lightBg || '#f8fafc'} onChange={(e) => setSettings({...settings, lightBg: e.target.value})} style={{ width: '100%', height: 36, padding: 2, borderRadius: 4, border: '1px solid var(--border)' }} />
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Dark Mode Colors</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Primary Color</label>
+                            <input type="color" value={settings.darkPrimary || '#6c63ff'} onChange={(e) => setSettings({...settings, darkPrimary: e.target.value})} style={{ width: '100%', height: 36, padding: 2, borderRadius: 4, border: '1px solid var(--border)' }} />
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Background</label>
+                            <input type="color" value={settings.darkBg || '#0f172a'} onChange={(e) => setSettings({...settings, darkBg: e.target.value})} style={{ width: '100%', height: 36, padding: 2, borderRadius: 4, border: '1px solid var(--border)' }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 20 }}>
                     <h4 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Payment & Shipping</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                       <div>
                         <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Default Shipping Fee</label>
-                        <input type="number" defaultValue={settings.shippingFee || 0} style={{
+                        <input type="number" value={settings.shippingFee || 0} onChange={(e) => setSettings({...settings, shippingFee: e.target.value})} style={{
                           width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--border)',
                           background: 'var(--bg)', color: 'var(--text)', fontSize: 14
                         }} />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Free Shipping Threshold</label>
-                        <input type="number" defaultValue={settings.freeShippingThreshold || 0} style={{
+                        <input type="number" value={settings.freeShippingThreshold || 0} onChange={(e) => setSettings({...settings, freeShippingThreshold: e.target.value})} style={{
                           width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--border)',
                           background: 'var(--bg)', color: 'var(--text)', fontSize: 14
                         }} />
@@ -721,6 +839,40 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* POPUPS TAB */}
+            {activeTab === 'popups' && (
+              <div style={{ animation: 'fadeUp 0.4s ease both' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                  <div>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16 }}>Popup Management</h3>
+                    <p style={{ color: 'var(--text2)', fontSize: 13 }}>{popups.length} popups in system</p>
+                  </div>
+                  <button onClick={() => setShowPopupModal(true)} style={{
+                    background: 'var(--accent)', color: '#fff', border: 'none', padding: '10px 20px',
+                    borderRadius: 8, fontFamily: 'var(--font-display)', fontWeight: 600, cursor: 'pointer'
+                  }}>
+                    Add Popup
+                  </button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 20 }}>
+                  {popups.map(popup => (
+                    <div key={popup._id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+                      <img src={popup.image} alt="Popup" style={{ width: '100%', height: 200, objectFit: 'cover' }} />
+                      <div style={{ padding: 12 }}>
+                        <button onClick={() => handleDeletePopup(popup._id)} style={{
+                          width: '100%', padding: '8px', borderRadius: 6, background: 'rgba(255,107,107,0.1)', border: '1px solid rgba(255,107,107,0.3)',
+                          color: 'var(--accent2)', fontSize: 12, cursor: 'pointer'
+                        }}>
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {popups.length === 0 && <div style={{ textAlign: 'center', padding: 48, color: 'var(--text2)' }}>No popups found</div>}
               </div>
             )}
           </>
@@ -768,11 +920,18 @@ export default function AdminDashboard() {
                 onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
                 style={{ padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
               />
+              <label style={{ fontSize: 12, color: 'var(--text2)' }}>Main Product Image</label>
               <input
-                placeholder="Image URL"
-                value={newProduct.image}
-                onChange={(e) => setNewProduct({...newProduct, image: e.target.value})}
-                style={{ padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                type="file"
+                onChange={(e) => setFiles({...files, productImage: e.target.files[0]})}
+                style={{ padding: '8px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)' }}
+              />
+              <label style={{ fontSize: 12, color: 'var(--text2)' }}>Gallery Images</label>
+              <input
+                type="file"
+                multiple
+                onChange={(e) => setFiles({...files, productGallery: Array.from(e.target.files)})}
+                style={{ padding: '8px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)' }}
               />
               <textarea
                 placeholder="Description"
@@ -812,12 +971,18 @@ export default function AdminDashboard() {
             width: '90%', maxWidth: 400
           }}>
             <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18, marginBottom: 20 }}>Add New Category</h3>
-            <input
-              placeholder="Category Name"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-            />
+            <div style={{ display: 'grid', gap: 16 }}>
+              <input
+                placeholder="Category Name"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+              />
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--text2)', marginBottom: 6 }}>Category Image</label>
+                <input type="file" onChange={(e) => setFiles({...files, categoryImage: e.target.files[0]})} style={{ fontSize: 12 }} />
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
               <button onClick={() => setShowCategoryModal(false)} style={{
                 flex: 1, padding: '12px', borderRadius: 8, background: 'var(--bg2)', border: '1px solid var(--border)',
@@ -855,12 +1020,10 @@ export default function AdminDashboard() {
                 onChange={(e) => setNewBanner({...newBanner, title: e.target.value})}
                 style={{ padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
               />
-              <input
-                placeholder="Image URL"
-                value={newBanner.image}
-                onChange={(e) => setNewBanner({...newBanner, image: e.target.value})}
-                style={{ padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-              />
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--text2)', marginBottom: 6 }}>Banner Image</label>
+                <input type="file" onChange={(e) => setFiles({...files, bannerImage: e.target.files[0]})} style={{ fontSize: 12 }} />
+              </div>
               <input
                 placeholder="Link URL (optional)"
                 value={newBanner.link}
@@ -984,13 +1147,26 @@ export default function AdminDashboard() {
   );
 }
 
-function OrderTable({ orders, onStatusChange, onOrderClick }) {
+function OrderTable({ orders, onStatusChange, onOrderClick, onDeleteOrder }) {
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: { light: 'rgba(251, 191, 36, 0.1)', dark: 'rgba(251, 191, 36, 0.15)' },
+      processing: { light: 'rgba(108, 99, 255, 0.1)', dark: 'rgba(108, 99, 255, 0.15)' },
+      shipped: { light: 'rgba(67, 217, 173, 0.1)', dark: 'rgba(67, 217, 173, 0.15)' },
+      delivered: { light: 'rgba(34, 197, 94, 0.1)', dark: 'rgba(34, 197, 94, 0.15)' },
+      cancelled: { light: 'rgba(255, 107, 107, 0.1)', dark: 'rgba(255, 107, 107, 0.15)' },
+    };
+    return colors[status] || { light: 'transparent', dark: 'transparent' };
+  };
+
+  const { theme } = useTheme();
+
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ background: 'var(--bg2)' }}>
-            {['Customer', 'Product', 'Total', 'Status', 'Date'].map(h => (
+            {['Customer', 'Product', 'Total', 'Status', 'Date', 'Actions'].map(h => (
               <th key={h} style={{
                 padding: '12px 20px', textAlign: 'left',
                 color: 'var(--text2)', fontSize: 12,
@@ -1002,47 +1178,64 @@ function OrderTable({ orders, onStatusChange, onOrderClick }) {
           </tr>
         </thead>
         <tbody>
-          {orders.map((o, i) => (
-            <tr key={o._id} style={{
-              borderBottom: '1px solid var(--border)',
-              transition: 'background 0.15s',
-              cursor: 'pointer'
-            }}
-              onClick={() => onOrderClick?.(o)}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg2)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              <td style={{ padding: '14px 20px' }}>
-                <div onClick={(e) => { e.stopPropagation(); onOrderClick?.(o); }} style={{ fontWeight: 600, fontSize: 14, marginBottom: 2, color: 'var(--accent)', cursor: 'pointer' }}>{o.customerName}</div>
-                <div style={{ color: 'var(--text2)', fontSize: 12 }}>{o.email}</div>
-              </td>
-              <td style={{ padding: '14px 20px', color: 'var(--text2)', fontSize: 13 }}>
-                {o.products?.[0]?.name || 'N/A'}
-                {o.products?.length > 1 && <span style={{ color: 'var(--accent)', fontSize: 11, marginLeft: 6 }}>+{o.products.length - 1}</span>}
-              </td>
-              <td style={{ padding: '14px 20px', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15 }}>
-                ${o.total?.toFixed(2)}
-              </td>
-              <td style={{ padding: '14px 20px' }}>
-                <select
-                  value={o.status}
-                  onChange={(e) => onStatusChange?.(o._id, e.target.value)}
-                  style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 16,
-                    background: 'var(--surface)', border: '1px solid var(--border)',
-                    color: 'var(--text)', fontFamily: 'var(--font-display)', fontWeight: 700,
-                  }}
-                >
-                  {['pending', 'processing', 'shipped', 'delivered', 'cancelled'].map((status) => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </td>
-              <td style={{ padding: '14px 20px', color: 'var(--text2)', fontSize: 13 }}>
-                {new Date(o.createdAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </td>
-            </tr>
-          ))}
+          {orders.map((o, i) => {
+            const statusColor = getStatusColor(o.status)[theme] || getStatusColor(o.status).light;
+            return (
+              <tr key={o._id} style={{
+                borderBottom: '1px solid var(--border)',
+                transition: 'background 0.15s',
+                cursor: 'pointer',
+                background: statusColor
+              }}
+                onClick={() => onOrderClick?.(o)}
+                onMouseEnter={e => e.currentTarget.style.filter = 'brightness(0.95)'}
+                onMouseLeave={e => e.currentTarget.style.filter = 'none'}
+              >
+                <td style={{ padding: '14px 20px' }}>
+                  <div onClick={(e) => { e.stopPropagation(); onOrderClick?.(o); }} style={{ fontWeight: 600, fontSize: 14, marginBottom: 2, color: 'var(--accent)', cursor: 'pointer' }}>{o.customerName}</div>
+                  <div style={{ color: 'var(--text2)', fontSize: 12 }}>{o.email}</div>
+                </td>
+                <td style={{ padding: '14px 20px', color: 'var(--text2)', fontSize: 13 }}>
+                  {o.products?.[0]?.name || 'N/A'}
+                  {o.products?.length > 1 && <span style={{ color: 'var(--accent)', fontSize: 11, marginLeft: 6 }}>+{o.products.length - 1}</span>}
+                </td>
+                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15 }}>
+                  ${o.total?.toFixed(2)}
+                </td>
+                <td style={{ padding: '14px 20px' }}>
+                  <select
+                    value={o.status}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => onStatusChange?.(o._id, e.target.value)}
+                    style={{
+                      width: '100%', padding: '8px 12px', borderRadius: 16,
+                      background: 'var(--surface)', border: '1px solid var(--border)',
+                      color: 'var(--text)', fontFamily: 'var(--font-display)', fontWeight: 700,
+                      fontSize: 12,
+                    }}
+                  >
+                    {['pending', 'processing', 'shipped', 'delivered', 'cancelled'].map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </td>
+                <td style={{ padding: '14px 20px', color: 'var(--text2)', fontSize: 13 }}>
+                  {new Date(o.createdAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </td>
+                <td style={{ padding: '14px 20px' }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDeleteOrder?.(o._id); }}
+                    style={{
+                      padding: '6px 12px', borderRadius: 6, background: 'rgba(255,107,107,0.1)', border: '1px solid rgba(255,107,107,0.3)',
+                      color: 'var(--accent2)', fontSize: 12, cursor: 'pointer'
+                    }}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       {orders.length === 0 && (

@@ -11,11 +11,13 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const visitRoutes = require('./routes/visitRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
+const popupRoutes = require('./routes/popupRoutes');
 
 const app = express();
 
 app.use(cors({ origin: '*' }));
 app.use(express.json());
+app.use('/uploads', express.static('uploads'));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -25,6 +27,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/visits', visitRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/popups', popupRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Health check

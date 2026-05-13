@@ -33,10 +33,23 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+const upload = require('../middleware/uploadMiddleware');
+
 // POST /api/products (admin)
-router.post('/', protect, adminOnly, async (req, res) => {
+router.post('/', protect, adminOnly, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'gallery', maxCount: 10 }]), async (req, res) => {
   try {
-    const product = await Product.create(req.body);
+    const productData = { ...req.body };
+    
+    if (req.files) {
+      if (req.files.image) {
+        productData.image = `/uploads/${req.files.image[0].filename}`;
+      }
+      if (req.files.gallery) {
+        productData.gallery = req.files.gallery.map(file => `/uploads/${file.filename}`);
+      }
+    }
+    
+    const product = await Product.create(productData);
     res.status(201).json(product);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -55,9 +68,21 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
 });
 
 // PUT /api/products/:id (admin)
-router.put('/:id', protect, adminOnly, async (req, res) => {
+router.put('/:id', protect, adminOnly, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'gallery', maxCount: 10 }]), async (req, res) => {
   try {
-    const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const productData = { ...req.body };
+
+    if (req.files) {
+      if (req.files.image) {
+        productData.image = `/uploads/${req.files.image[0].filename}`;
+      }
+      if (req.files.gallery) {
+        const newGallery = req.files.gallery.map(file => `/uploads/${file.filename}`);
+        productData.gallery = productData.gallery ? [...JSON.parse(productData.gallery), ...newGallery] : newGallery;
+      }
+    }
+
+    const product = await Product.findByIdAndUpdate(req.params.id, productData, { new: true });
     if (!product) return res.status(404).json({ message: 'Product not found' });
     res.json(product);
   } catch (err) {

@@ -89,12 +89,18 @@ export default function ProductCard({ product }) {
 
       {/* Content */}
       <div style={{ padding: '20px' }}>
-        <h3 style={{
-          fontFamily: 'var(--font-display)', fontWeight: 700,
-          fontSize: 16, marginBottom: 6, lineHeight: 1.3,
-        }}>
-          {product.name}
-        </h3>
+        <Link to={`/product/${product._id}`} style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
+          <h3 style={{
+            fontFamily: 'var(--font-display)', fontWeight: 700,
+            fontSize: 16, marginBottom: 6, lineHeight: 1.3,
+            transition: 'color 0.2s',
+          }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'inherit'}
+          >
+            {product.name}
+          </h3>
+        </Link>
         <p style={{ color: 'var(--text2)', fontSize: 13, lineHeight: 1.5, marginBottom: 14, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {product.description}
         </p>

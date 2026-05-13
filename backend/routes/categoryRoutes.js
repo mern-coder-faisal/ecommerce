@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Category = require('../models/Category');
 const { protect, adminOnly } = require('../middleware/auth');
+const upload = require('../middleware/uploadMiddleware');
 
 router.get('/', async (req, res) => {
   try {
@@ -12,13 +13,13 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', protect, adminOnly, async (req, res) => {
+router.post('/', protect, adminOnly, upload.single('image'), async (req, res) => {
   try {
-    const { name } = req.body;
-    if (!name) return res.status(400).json({ message: 'Name is required' });
-    const existing = await Category.findOne({ name });
-    if (existing) return res.status(400).json({ message: 'Category already exists' });
-    const category = await Category.create({ name });
+    const categoryData = { ...req.body };
+    if (req.file) {
+      categoryData.image = `/uploads/${req.file.filename}`;
+    }
+    const category = await Category.create(categoryData);
     res.status(201).json(category);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -29,17 +30,19 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
   try {
     const category = await Category.findByIdAndDelete(req.params.id);
     if (!category) return res.status(404).json({ message: 'Category not found' });
-    res.json({ message: 'Category removed' });
+    res.json({ message: 'Category deleted' });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
-router.put('/:id', protect, adminOnly, async (req, res) => {
+router.put('/:id', protect, adminOnly, upload.single('image'), async (req, res) => {
   try {
-    const { name } = req.body;
-    if (!name) return res.status(400).json({ message: 'Name is required' });
-    const category = await Category.findByIdAndUpdate(req.params.id, { name }, { new: true });
+    const categoryData = { ...req.body };
+    if (req.file) {
+      categoryData.image = `/uploads/${req.file.filename}`;
+    }
+    const category = await Category.findByIdAndUpdate(req.params.id, categoryData, { new: true });
     if (!category) return res.status(404).json({ message: 'Category not found' });
     res.json(category);
   } catch (err) {

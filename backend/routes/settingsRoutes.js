@@ -18,9 +18,14 @@ router.get('/', protect, adminOnly, async (req, res) => {
   }
 });
 
-router.post('/', protect, adminOnly, async (req, res) => {
+const upload = require('../middleware/uploadMiddleware');
+
+router.post('/', protect, adminOnly, upload.single('logo'), async (req, res) => {
   try {
-    const updates = req.body;
+    const updates = { ...req.body };
+    if (req.file) {
+      updates.logo = `/uploads/${req.file.filename}`;
+    }
     const saved = {};
     for (const key of Object.keys(updates)) {
       const value = updates[key];

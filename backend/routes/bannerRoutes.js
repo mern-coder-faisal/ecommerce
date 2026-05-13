@@ -12,11 +12,16 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', protect, adminOnly, async (req, res) => {
+const upload = require('../middleware/uploadMiddleware');
+
+router.post('/', protect, adminOnly, upload.single('image'), async (req, res) => {
   try {
-    const { title, description, image, link, active } = req.body;
-    if (!image) return res.status(400).json({ message: 'Image URL is required' });
-    const banner = await Banner.create({ title, description, image, link, active: active !== false });
+    const bannerData = { ...req.body };
+    if (req.file) {
+      bannerData.image = `/uploads/${req.file.filename}`;
+    }
+    if (!bannerData.image) return res.status(400).json({ message: 'Image is required' });
+    const banner = await Banner.create(bannerData);
     res.status(201).json(banner);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -33,10 +38,13 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
-router.put('/:id', protect, adminOnly, async (req, res) => {
+router.put('/:id', protect, adminOnly, upload.single('image'), async (req, res) => {
   try {
-    const { title, description, image, link, active } = req.body;
-    const banner = await Banner.findByIdAndUpdate(req.params.id, { title, description, image, link, active }, { new: true });
+    const bannerData = { ...req.body };
+    if (req.file) {
+      bannerData.image = `/uploads/${req.file.filename}`;
+    }
+    const banner = await Banner.findByIdAndUpdate(req.params.id, bannerData, { new: true });
     if (!banner) return res.status(404).json({ message: 'Banner not found' });
     res.json(banner);
   } catch (err) {
