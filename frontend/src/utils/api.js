@@ -93,13 +93,13 @@ export const api = {
   createCategory: (body) =>
     apiFetch('/categories', {
       method: 'POST',
-      body: JSON.stringify(body)
+      body: body instanceof FormData ? body : JSON.stringify(body)
     }),
 
   updateCategory: (id, body) =>
     apiFetch(`/categories/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(body)
+      body: body instanceof FormData ? body : JSON.stringify(body)
     }),
 
   deleteCategory: (id) =>
@@ -112,13 +112,13 @@ export const api = {
   createBanner: (body) =>
     apiFetch('/banners', {
       method: 'POST',
-      body: JSON.stringify(body)
+      body: body instanceof FormData ? body : JSON.stringify(body)
     }),
 
   updateBanner: (id, body) =>
     apiFetch(`/banners/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(body)
+      body: body instanceof FormData ? body : JSON.stringify(body)
     }),
 
   deleteBanner: (id) =>
@@ -129,13 +129,13 @@ export const api = {
   createProduct: (body) =>
     apiFetch('/products', {
       method: 'POST',
-      body: JSON.stringify(body)
+      body: body instanceof FormData ? body : JSON.stringify(body)
     }),
 
   updateProduct: (id, body) =>
     apiFetch(`/products/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(body)
+      body: body instanceof FormData ? body : JSON.stringify(body)
     }),
 
   deleteProduct: (id) =>

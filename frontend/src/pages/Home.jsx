@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, SlidersHorizontal, Zap } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import ChatWidget from '../components/ChatWidget';
+import PopupOverlay from '../components/PopupOverlay';
 import { api } from '../utils/api';
 
 const DEFAULT_CATEGORIES = ['All', 'Electronics', 'Furniture', 'Lifestyle', 'Accessories'];
@@ -236,6 +237,7 @@ export default function Home() {
         </div>
       </section>
       <ChatWidget products={products} />
+      <PopupOverlay />
     </div>
   );
 }
