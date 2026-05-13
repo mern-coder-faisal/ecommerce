@@ -1,4 +1,4 @@
-const BASE = 'https://ecommerce-jt68.onrender.com/api';
+const BASE = import.meta.env.VITE_API_URL || 'https://ecommerce-jt68.onrender.com/api';
 
 export async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('ng_token');
