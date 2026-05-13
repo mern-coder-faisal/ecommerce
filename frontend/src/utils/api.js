@@ -1,13 +1,13 @@
-const BASE = '/api';
+const BASE = 'https://ecommerce-jt68.onrender.com/api';
 
 export async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('ng_token');
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
-  
+
   if (res.status === 204) return null;
-  
+
   const text = await res.text();
   let data;
   try {
@@ -16,7 +16,7 @@ export async function apiFetch(path, options = {}) {
     if (!res.ok) throw new Error(text || 'Request failed');
     return text;
   }
-  
+
   if (!res.ok) throw new Error(data?.message || data?.error || 'Request failed');
   return data;
 }
